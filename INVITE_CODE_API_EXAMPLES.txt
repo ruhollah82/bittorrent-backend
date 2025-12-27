@@ -1,0 +1,272 @@
+# BitTorrent Tracker - Invite Code Generation API Examples
+# Generated: 2025-01-03
+# Endpoint: POST /api/auth/invite/generate/
+
+===============================================================================
+ENDPOINT DETAILS
+===============================================================================
+
+URL: POST /api/auth/invite/generate/
+Authentication: Required (JWT Bearer Token)
+Content-Type: application/json
+Cost: 5.00 credits per invite code
+Requirements: User must be member, trusted, or elite class
+Limits: Maximum 2 invite codes per day
+
+===============================================================================
+REQUEST FORMAT
+===============================================================================
+
+curl -X POST \
+  http://127.0.0.1:8000/api/auth/invite/generate/ \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -H "Content-Type: application/json"
+
+===============================================================================
+RESPONSE CASES
+===============================================================================
+
+===============================================================================
+CASE 1: SUCCESSFUL INVITE GENERATION (HTTP 201)
+===============================================================================
+
+Prerequisites:
+- User class: member, trusted, or elite
+- Available credits: ≥ 5.00
+- Daily invites used: < 2
+
+Request:
+POST /api/auth/invite/generate/
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+Content-Type: application/json
+
+Response (201 Created):
+{
+  "code": "ABC123DEF456GHI789",
+  "expires_at": "2026-01-03T18:22:51.075938Z",
+  "is_active": true
+}
+
+Side Effects:
+- 5.00 credits deducted from user balance
+- Invite code expires in 7 days
+- System log created for audit trail
+
+===============================================================================
+CASE 2: INSUFFICIENT USER CLASS (HTTP 403)
+===============================================================================
+
+Prerequisites:
+- User class: newbie (or any class below member)
+
+Request:
+POST /api/auth/invite/generate/
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+Content-Type: application/json
+
+Response (403 Forbidden):
+{
+  "error": "دسترسی غیرمجاز",
+  "message": "برای ایجاد کد دعوت نیاز به ارتقا کلاس کاربری به یکی از سطوح member, trusted, elite دارید",
+  "current_class": "newbie"
+}
+
+===============================================================================
+CASE 3: INSUFFICIENT CREDITS (HTTP 402)
+===============================================================================
+
+Prerequisites:
+- User class: member, trusted, or elite
+- Available credits: < 5.00
+
+Request:
+POST /api/auth/invite/generate/
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+Content-Type: application/json
+
+Response (402 Payment Required):
+{
+  "error": "اعتبار کافی نیست",
+  "required_credit": "5.00",
+  "available_credit": "2.50",
+  "shortage": "2.50"
+}
+
+===============================================================================
+CASE 4: DAILY LIMIT EXCEEDED (HTTP 429)
+===============================================================================
+
+Prerequisites:
+- User class: member, trusted, or elite
+- Available credits: ≥ 5.00
+- Daily invites used: ≥ 2
+
+Request:
+POST /api/auth/invite/generate/
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+Content-Type: application/json
+
+Response (429 Too Many Requests):
+{
+  "error": "محدودیت روزانه",
+  "message": "شما نمی‌توانید بیش از 2 کد دعوت در روز ایجاد کنید",
+  "used_today": 2,
+  "limit": 2
+}
+
+===============================================================================
+CASE 5: UNAUTHENTICATED REQUEST (HTTP 401)
+===============================================================================
+
+Prerequisites:
+- Missing or invalid JWT token
+
+Request:
+POST /api/auth/invite/generate/
+Content-Type: application/json
+
+Response (401 Unauthorized):
+{
+  "detail": "Authentication credentials were not provided."
+}
+
+===============================================================================
+PRACTICAL USAGE EXAMPLES
+===============================================================================
+
+===============================================================================
+EXAMPLE 1: SUCCESSFUL INVITE GENERATION
+===============================================================================
+
+# 1. Login to get JWT token
+curl -X POST http://127.0.0.1:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "ruhollah823", "password": "Ruhollah82"}'
+
+# Response contains access token
+{
+  "tokens": {
+    "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+  }
+}
+
+# 2. Generate invite code
+curl -X POST http://127.0.0.1:8000/api/auth/invite/generate/ \
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." \
+  -H "Content-Type: application/json"
+
+# Success response
+{
+  "code": "PTAW0R59O20A",
+  "expires_at": "2026-01-03T18:22:51.075938Z",
+  "is_active": true
+}
+
+===============================================================================
+EXAMPLE 2: ERROR HANDLING
+===============================================================================
+
+# Try to generate without being a member
+curl -X POST http://127.0.0.1:8000/api/auth/invite/generate/ \
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." \
+  -H "Content-Type: application/json"
+
+# Response for newbie user
+{
+  "error": "دسترسی غیرمجاز",
+  "message": "برای ایجاد کد دعوت نیاز به ارتقا کلاس کاربری به یکی از سطوح member, trusted, elite دارید",
+  "current_class": "newbie"
+}
+
+===============================================================================
+USER CLASS REQUIREMENTS
+===============================================================================
+
+To generate invite codes, users must have one of these classes:
+- member: Basic member (minimum requirement)
+- trusted: Trusted user
+- elite: Elite user
+
+Newbie users cannot generate invite codes and will receive HTTP 403.
+
+===============================================================================
+CREDIT REQUIREMENTS
+===============================================================================
+
+- Cost per invite code: 5.00 credits
+- Credits are deducted immediately upon successful generation
+- Users must have sufficient available credits (total_credit - locked_credit)
+
+===============================================================================
+DAILY LIMITS
+===============================================================================
+
+- Maximum 2 invite codes per day per user
+- Limit resets daily at midnight
+- Attempts beyond the limit return HTTP 429
+
+===============================================================================
+INVITE CODE PROPERTIES
+===============================================================================
+
+- Format: 12-character alphanumeric string (uppercase)
+- Expires: 7 days from creation (shorter than admin invites)
+- Usage: Can be used once for user registration
+- Tracking: Creator is logged in system audit logs
+
+===============================================================================
+REGISTRATION WITH GENERATED INVITE CODE
+===============================================================================
+
+# Use the generated invite code for registration
+curl -X POST http://127.0.0.1:8000/api/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "newuser",
+    "email": "newuser@example.com",
+    "password": "securepass123",
+    "password_confirm": "securepass123",
+    "invite_code": "PTAW0R59O20A"
+  }'
+
+===============================================================================
+ADMIN INVITE CODE GENERATION (DIFFERENT ENDPOINT)
+===============================================================================
+
+# Admins can generate invite codes without restrictions
+curl -X POST http://127.0.0.1:8000/api/auth/invite/create/ \
+  -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"expires_at": "2025-12-31T23:59:59Z"}'
+
+# Admin response (longer expiry, no cost)
+{
+  "code": "ADMINCODE123",
+  "expires_at": "2025-12-31T23:59:59Z",
+  "is_active": true
+}
+
+===============================================================================
+ERROR CODE SUMMARY
+===============================================================================
+
+- 201: Invite code created successfully
+- 401: Authentication required
+- 402: Insufficient credits (payment required)
+- 403: Insufficient user permissions/class
+- 429: Daily limit exceeded
+- 500: Internal server error
+
+===============================================================================
+TESTING THE API
+===============================================================================
+
+# Test with different user classes and credit levels
+# 1. Create test user with member class
+# 2. Ensure they have sufficient credits
+# 3. Make authenticated request to /api/auth/invite/generate/
+# 4. Verify response and credit deduction
+
+===============================================================================
+END OF DOCUMENT
+===============================================================================
