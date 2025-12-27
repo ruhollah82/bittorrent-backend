@@ -388,7 +388,7 @@ def calculate_upload_credit(request):
         )
 
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def check_ratio_status(request):
     """بررسی وضعیت ratio کاربر"""
