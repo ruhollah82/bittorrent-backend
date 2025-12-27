@@ -1,5 +1,13 @@
 from rest_framework import serializers
-from .models import Torrent, TorrentStats, Peer
+from .models import Torrent, TorrentStats, Peer, Category
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    """Serializer for categories"""
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'slug', 'description', 'icon', 'color']
 
 
 class TorrentSerializer(serializers.ModelSerializer):
@@ -8,13 +16,15 @@ class TorrentSerializer(serializers.ModelSerializer):
     created_by_username = serializers.SerializerMethodField()
     size_formatted = serializers.SerializerMethodField()
     age_days = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    category_slug = serializers.SerializerMethodField()
 
     class Meta:
         model = Torrent
         fields = [
             'id', 'info_hash', 'name', 'size', 'size_formatted',
             'files_count', 'created_by_username', 'created_at',
-            'category', 'is_private', 'age_days'
+            'category', 'category_name', 'category_slug', 'is_private', 'age_days'
         ]
 
     def get_created_by_username(self, obj):
@@ -27,6 +37,12 @@ class TorrentSerializer(serializers.ModelSerializer):
         from django.utils import timezone
         return (timezone.now() - obj.created_at).days
 
+    def get_category_name(self, obj):
+        return obj.category.name if obj.category else None
+
+    def get_category_slug(self, obj):
+        return obj.category.slug if obj.category else None
+
 
 class TorrentDetailSerializer(serializers.ModelSerializer):
     """Serializer برای جزئیات تورنت"""
@@ -35,13 +51,15 @@ class TorrentDetailSerializer(serializers.ModelSerializer):
     size_formatted = serializers.SerializerMethodField()
     stats = serializers.SerializerMethodField()
     health = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
+    category_slug = serializers.SerializerMethodField()
 
     class Meta:
         model = Torrent
         fields = [
             'id', 'info_hash', 'name', 'description', 'size',
             'size_formatted', 'files_count', 'created_by_username',
-            'created_at', 'updated_at', 'category', 'tags',
+            'created_at', 'updated_at', 'category', 'category_name', 'category_slug', 'tags',
             'is_private', 'stats', 'health'
         ]
 
@@ -89,6 +107,12 @@ class TorrentDetailSerializer(serializers.ModelSerializer):
             return {'score': round(score, 1), 'status': status}
         except TorrentStats.DoesNotExist:
             return {'score': 0, 'status': 'dead'}
+
+    def get_category_name(self, obj):
+        return obj.category.name if obj.category else None
+
+    def get_category_slug(self, obj):
+        return obj.category.slug if obj.category else None
 
 
 class TorrentStatsSerializer(serializers.ModelSerializer):
