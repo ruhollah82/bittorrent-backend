@@ -135,7 +135,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'user_class', 'total_credit',
             'locked_credit', 'available_credit', 'lifetime_upload',
             'lifetime_download', 'ratio', 'download_multiplier',
-            'max_torrents', 'is_banned', 'date_joined', 'last_login'
+            'max_torrents', 'is_banned', 'date_joined', 'last_login',
+            'profile_picture'
         ]
         read_only_fields = [
             'id', 'user_class', 'total_credit', 'locked_credit',
@@ -155,6 +156,64 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_max_torrents(self, obj):
         return obj.max_torrents
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating user profile including file uploads"""
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'profile_picture']
+        extra_kwargs = {
+            'profile_picture': {'required': False, 'allow_null': True}
+        }
+
+    def validate_profile_picture(self, value):
+        """Validate and process uploaded image"""
+        if value:
+            # Check file size (max 5MB)
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError('Profile picture must be smaller than 5MB.')
+
+            # Check file type
+            allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+            if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+                raise serializers.ValidationError('Only JPEG, PNG, GIF, and WebP images are allowed.')
+
+            # Validate image dimensions and resize if needed
+            try:
+                from PIL import Image
+                from io import BytesIO
+
+                # Open image
+                image = Image.open(value)
+
+                # Check minimum dimensions
+                if image.width < 50 or image.height < 50:
+                    raise serializers.ValidationError('Profile picture must be at least 50x50 pixels.')
+
+                # Resize if too large (max 500x500)
+                max_size = (500, 500)
+                if image.width > max_size[0] or image.height > max_size[1]:
+                    image.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                    # Save resized image to BytesIO
+                    output = BytesIO()
+                    image_format = image.format or 'JPEG'
+                    if image_format == 'JPEG':
+                        image.save(output, format=image_format, quality=85)
+                    else:
+                        image.save(output, format=image_format)
+                    output.seek(0)
+
+                    # Replace the original file with resized version
+                    from django.core.files.base import ContentFile
+                    value.file = ContentFile(output.getvalue(), name=value.name)
+
+            except Exception as e:
+                raise serializers.ValidationError(f'Invalid image file: {str(e)}')
+
+        return value
 
 
 class UserStatsSerializer(serializers.ModelSerializer):

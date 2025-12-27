@@ -229,6 +229,24 @@ CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
         except subprocess.CalledProcessError:
             print("⚠️  Invite code creation failed")
 
+    def show_invite_code(self):
+        """Show the first available invite code"""
+        if self.is_windows:
+            python_path = self.venv_path / "Scripts" / "python"
+        else:
+            python_path = self.venv_path / "bin" / "python"
+
+        manage_py = self.project_root / "manage.py"
+
+        print("🎫 Getting first invite code...")
+        try:
+            self.run_command([
+                str(python_path), str(manage_py), "show_invite_codes",
+                "--first-only"
+            ])
+        except subprocess.CalledProcessError:
+            print("⚠️  Could not retrieve invite code")
+
     def start_server(self):
         """Start the Django development server"""
         print("🚀 Starting Django development server...")
@@ -244,6 +262,9 @@ CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
         print("📖 API Documentation: http://127.0.0.1:8000/api/docs/")
         print("👤 Admin panel: http://127.0.0.1:8000/admin/")
         print("🔑 Superuser: admin / admin123")
+
+        # Show invite code for first user registration
+        self.show_invite_code()
         print("")
 
         try:

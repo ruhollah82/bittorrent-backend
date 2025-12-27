@@ -196,6 +196,10 @@ CREDIT_MULTIPLIER=1.0
 # Create invite codes for user registration
 python manage.py create_invite --count 5 --expires 30
 
+# Show available invite codes
+python manage.py show_invite_codes --first-only  # Show first available code
+python manage.py show_invite_codes               # Show all codes
+
 # Setup admin panel and system configuration
 python manage.py setup_admin
 

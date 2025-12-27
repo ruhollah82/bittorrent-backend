@@ -95,6 +95,12 @@ class User(AbstractUser):
     ban_reason = models.TextField(blank=True)
     banned_at = models.DateTimeField(null=True, blank=True)
     last_announce = models.DateTimeField(null=True, blank=True)
+    profile_picture = models.ImageField(
+        upload_to='profile_pictures/',
+        null=True,
+        blank=True,
+        help_text='User profile picture'
+    )
 
     def __str__(self):
         return f"{self.username} ({self.user_class})"

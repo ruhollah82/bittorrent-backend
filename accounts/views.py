@@ -2,6 +2,7 @@ from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
@@ -15,8 +16,8 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExampl
 from .models import User, InviteCode, AuthToken
 from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
-    UserProfileSerializer, UserStatsSerializer,
-    AuthTokenSerializer, AuthTokenCreateSerializer,
+    UserProfileSerializer, UserProfileUpdateSerializer,
+    UserStatsSerializer, AuthTokenSerializer, AuthTokenCreateSerializer,
     InviteCodeSerializer
 )
 from logging_monitoring.models import UserActivity, SystemLog
@@ -233,8 +234,14 @@ class CustomTokenRefreshView(TokenRefreshView):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """User profile management - get and update profile"""
 
-    serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_serializer_class(self):
+        """Use different serializers for read and update operations"""
+        if self.request.method in ['PUT', 'PATCH']:
+            return UserProfileUpdateSerializer
+        return UserProfileSerializer
 
     def get_object(self):
         return self.request.user
@@ -242,12 +249,15 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+        # Use update serializer for validation
+        serializer = UserProfileUpdateSerializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
 
         old_data = {
             'email': instance.email,
-            'username': instance.username
+            'username': instance.username,
+            'profile_picture': instance.profile_picture
         }
 
         self.perform_update(serializer)
@@ -258,18 +268,22 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
             changes.append(f'email: {old_data["email"]} -> {instance.email}')
         if old_data['username'] != instance.username:
             changes.append(f'username: {old_data["username"]} -> {instance.username}')
+        if old_data['profile_picture'] != instance.profile_picture:
+            changes.append('profile_picture updated')
 
         if changes:
             UserActivity.objects.create(
                 user=instance,
                 activity_type='profile_update',
-                description=f'بروزرسانی پروفایل: {", ".join(changes)}',
+                description=f'Profile update: {", ".join(changes)}',
                 details={'changes': changes},
                 ip_address=self.get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')
             )
 
-        return Response(serializer.data)
+        # Return full profile data using read serializer
+        response_serializer = UserProfileSerializer(instance)
+        return Response(response_serializer.data)
 
     def get_client_ip(self, request):
         """دریافت IP آدرس کلاینت"""

@@ -13,6 +13,7 @@ from .serializers import (
 )
 from credits.models import CreditTransaction
 from accounts.models import User
+from utils.helpers import get_client_ip
 
 
 @extend_schema(
@@ -566,7 +567,8 @@ def generate_torrent_file(torrent):
         torrent_dict['announce'] = torrent.announce_url.encode('utf-8')
     else:
         # Use default tracker URL
-        torrent_dict['announce'] = f"{settings.SITE_URL or 'http://localhost:8000'}/announce".encode('utf-8')
+        site_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+        torrent_dict['announce'] = f"{site_url}/announce".encode('utf-8')
 
     # Add comment
     if torrent.comment:
