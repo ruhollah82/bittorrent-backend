@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 
-from .models import Torrent, TorrentStats, Peer
+from .models import Torrent, TorrentStats, Peer, Category
 from .serializers import (
     TorrentSerializer, TorrentStatsSerializer,
     TorrentDetailSerializer, PeerSerializer
@@ -51,7 +51,15 @@ class TorrentListView(generics.ListAPIView):
         # فیلترها
         category = self.request.query_params.get('category')
         if category:
-            queryset = queryset.filter(category=category)
+            # Try to filter by category ID first, then by slug, then by name
+            try:
+                category_id = int(category)
+                queryset = queryset.filter(category_id=category_id)
+            except ValueError:
+                # Not a number, try slug or name
+                queryset = queryset.filter(
+                    Q(category__slug=category) | Q(category__name=category)
+                )
 
         search = self.request.query_params.get('search')
         if search:
@@ -197,8 +205,41 @@ def upload_torrent(request):
         info_hash = hashlib.sha1(bencode.encode(info_dict)).hexdigest()
 
         # Check if torrent already exists
-        if Torrent.objects.filter(info_hash=info_hash).exists():
-            return Response({'error': 'Torrent already exists'}, status=status.HTTP_409_CONFLICT)
+        existing_torrent = Torrent.objects.filter(info_hash=info_hash).first()
+        if existing_torrent:
+            if existing_torrent.is_active:
+                # Active torrent exists - reject upload
+                return Response({'error': 'Torrent already exists'}, status=status.HTTP_409_CONFLICT)
+            else:
+                # Inactive torrent exists - reactivate it
+                existing_torrent.is_active = True
+                existing_torrent.save()
+
+                # Log reactivation
+                from logging_monitoring.models import SystemLog
+                SystemLog.objects.create(
+                    category='torrent',
+                    level='info',
+                    message=f'Torrent reactivated: {existing_torrent.name}',
+                    details={
+                        'torrent_id': existing_torrent.id,
+                        'info_hash': existing_torrent.info_hash,
+                        'reactivated_by': request.user.username
+                    },
+                    user=request.user
+                )
+
+                return Response({
+                    'success': True,
+                    'message': f'Torrent {existing_torrent.name} has been reactivated',
+                    'torrent': {
+                        'id': existing_torrent.id,
+                        'name': existing_torrent.name,
+                        'info_hash': existing_torrent.info_hash,
+                        'size': existing_torrent.size,
+                        'created_at': existing_torrent.created_at
+                    }
+                })
 
         # Extract metadata
         name = info_dict.get('name', '').decode('utf-8') if isinstance(info_dict.get('name'), bytes) else info_dict.get('name', 'Unknown')
@@ -217,7 +258,24 @@ def upload_torrent(request):
 
         # Get form data
         description = request.POST.get('description', '')
-        category = request.POST.get('category', '')
+        category_input = request.POST.get('category')
+        category = None
+        if category_input:
+            try:
+                # Try to get category by ID first
+                category_id = int(category_input)
+                category = Category.objects.get(id=category_id, is_active=True)
+            except (ValueError, Category.DoesNotExist):
+                # Try to get category by slug or name
+                try:
+                    category = Category.objects.get(
+                        Q(slug=category_input) | Q(name=category_input),
+                        is_active=True
+                    )
+                except Category.DoesNotExist:
+                    # Invalid category, set to None
+                    pass
+
         is_private = request.POST.get('is_private', 'false').lower() == 'true'
 
         # Create torrent record
@@ -246,11 +304,13 @@ def upload_torrent(request):
         # Award upload credits
         from credits.models import CreditTransaction
         from django.conf import settings
+        from decimal import Decimal
 
         # Calculate credits based on torrent size
         # 1 credit per GB uploaded
-        torrent_size_gb = total_size / (1024 ** 3)
-        upload_credits = torrent_size_gb * getattr(settings, 'BITTORRENT_SETTINGS', {}).get('UPLOAD_CREDIT_MULTIPLIER', 1.0)
+        torrent_size_gb = Decimal(total_size) / Decimal(1024 ** 3)
+        multiplier = Decimal(str(getattr(settings, 'BITTORRENT_SETTINGS', {}).get('UPLOAD_CREDIT_MULTIPLIER', 1.0)))
+        upload_credits = (torrent_size_gb * multiplier).quantize(Decimal('0.01'))  # Round to 2 decimal places
 
         if upload_credits > 0:
             CreditTransaction.objects.create(
@@ -315,14 +375,31 @@ def upload_torrent(request):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def torrent_categories(request):
-    """دریافت لیست دسته‌بندی‌های تورنت"""
+    """دریافت لیست دسته‌بندی‌های تورنت با تعداد تورنت‌های هر دسته"""
 
-    categories = Torrent.objects.filter(
-        is_active=True,
-        category__isnull=False
-    ).values('category').annotate(
-        count=Count('id')
-    ).order_by('-count')
+    # Get all active categories with torrent counts
+    categories_with_counts = Category.objects.filter(
+        is_active=True
+    ).annotate(
+        count=Count('torrents', filter=Q(torrents__is_active=True))
+    ).values(
+        'id', 'name', 'slug', 'description', 'icon', 'color', 'count'
+    ).order_by('sort_order')
+
+    return Response({
+        'categories': list(categories_with_counts),
+        'total_categories': len(categories_with_counts)
+    })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def categories_list(request):
+    """دریافت لیست ساده دسته‌بندی‌ها برای استفاده در فرم‌ها"""
+
+    categories = Category.objects.filter(
+        is_active=True
+    ).values('id', 'name', 'slug', 'icon', 'color').order_by('sort_order')
 
     return Response({
         'categories': list(categories)
