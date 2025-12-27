@@ -89,6 +89,67 @@ POST /api/auth/login/
 }
 ```
 
+### Generate Invite Code (Regular Users)
+
+```http
+POST /api/auth/invite/generate/
+Authorization: Bearer <token>
+```
+
+**Requirements:**
+- User must have `member`, `trusted`, or `elite` user class
+- User must have at least 5.00 credits available
+- User can create maximum 2 invite codes per day
+
+**Request Body:** (empty)
+
+**Response (201 - Success):**
+
+```json
+{
+  "code": "ABC123DEF456",
+  "expires_at": "2025-01-03T17:36:49Z",
+  "is_active": true
+}
+```
+
+**Response (402 - Insufficient Credits):**
+
+```json
+{
+  "error": "اعتبار کافی نیست",
+  "required_credit": "5.00",
+  "available_credit": "2.50",
+  "shortage": "2.50"
+}
+```
+
+**Response (403 - Insufficient User Class):**
+
+```json
+{
+  "error": "دسترسی غیرمجاز",
+  "message": "برای ایجاد کد دعوت نیاز به ارتقا کلاس کاربری به یکی از سطوح member, trusted, elite دارید",
+  "current_class": "newbie"
+}
+```
+
+**Response (429 - Daily Limit Exceeded):**
+
+```json
+{
+  "error": "محدودیت روزانه",
+  "message": "شما نمی‌توانید بیش از 2 کد دعوت در روز ایجاد کنید",
+  "used_today": 2,
+  "limit": 2
+}
+```
+
+**Notes:**
+- Generated invite codes expire after 7 days (shorter than admin codes)
+- Costs 5.00 credits per invite code
+- Credits are deducted immediately upon creation
+
 ## Core API Endpoints
 
 ### User Management
