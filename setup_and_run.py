@@ -29,7 +29,7 @@ class SetupRunner:
         print(f"🐧 Detected platform: {self.system}")
         print(f"📁 Project root: {self.project_root}")
 
-    def run_command(self, command, cwd=None, shell=False, check=True):
+    def run_command(self, command, cwd=None, shell=False, check=True, env=None):
         """Run a command with cross-platform compatibility"""
         try:
             if self.is_windows and not shell:
@@ -43,7 +43,8 @@ class SetupRunner:
                 shell=shell,
                 check=check,
                 capture_output=True,
-                text=True
+                text=True,
+                env=env
             )
             return result
         except subprocess.CalledProcessError as e:
