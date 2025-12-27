@@ -20,7 +20,7 @@ from .serializers import (
     UserRegistrationSerializer, UserLoginSerializer,
     UserProfileSerializer, UserProfileUpdateSerializer,
     UserStatsSerializer, AuthTokenSerializer, AuthTokenCreateSerializer,
-    InviteCodeSerializer
+    InviteCodeSerializer, UserInviteCodeSerializer
 )
 from logging_monitoring.models import UserActivity, SystemLog
 
@@ -432,8 +432,8 @@ def user_create_invite_code(request):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    # هزینه ایجاد کد دعوت (5 credit)
-    INVITE_COST = Decimal('5.00')
+    # هزینه ایجاد کد دعوت (1 credit - much cheaper since they get 10 credits when used)
+    INVITE_COST = Decimal('1.00')
     if user.available_credit < INVITE_COST:
         return Response(
             {
@@ -505,3 +505,31 @@ def user_create_invite_code(request):
 
     serializer = InviteCodeSerializer(invite)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def user_invite_codes(request):
+    """نمایش کدهای دعوت ایجاد شده توسط کاربر"""
+
+    user = request.user
+
+    # دریافت کدهای دعوت ایجاد شده توسط کاربر
+    invite_codes = InviteCode.objects.filter(created_by=user).order_by('-created_at')
+
+    # آمار کلی
+    total_created = invite_codes.count()
+    total_used = invite_codes.filter(used_by__isnull=False).count()
+    total_active = invite_codes.filter(is_active=True, used_by__isnull=True).exclude(expires_at__lt=timezone.now()).count()
+
+    serializer = UserInviteCodeSerializer(invite_codes, many=True)
+
+    return Response({
+        'stats': {
+            'total_created': total_created,
+            'total_used': total_used,
+            'total_active': total_active,
+            'success_rate': round((total_used / total_created * 100), 1) if total_created > 0 else 0
+        },
+        'invite_codes': serializer.data
+    })

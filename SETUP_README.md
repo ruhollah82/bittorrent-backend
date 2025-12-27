@@ -126,7 +126,7 @@ Once running, the server will be available at:
 
 - **Username**: admin
 - **Password**: admin123
-- **Email**: admin@example.com
+- **Email**: admin@localhost
 
 ⚠️ **Change these credentials in production!**
 

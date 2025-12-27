@@ -265,9 +265,9 @@ class AccountsAPITestCase(APITestCase):
         invite = InviteCode.objects.get(code=data['code'])
         self.assertEqual(invite.created_by, self.user)
 
-        # Verify credits were deducted
+        # Verify credits were deducted (1 credit cost)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.available_credit, Decimal('5.00'))
+        self.assertEqual(self.user.available_credit, Decimal('9.00'))
 
     def test_user_generate_invite_insufficient_class(self):
         """Test invite generation fails for newbie users"""
@@ -285,7 +285,7 @@ class AccountsAPITestCase(APITestCase):
     def test_user_generate_invite_insufficient_credits(self):
         """Test invite generation fails with insufficient credits"""
         self.user.user_class = 'member'
-        self.user.total_credit = Decimal('2.00')  # Less than required 5.00
+        self.user.total_credit = Decimal('0.50')  # Less than required 1.00
         self.user.save()
 
         self.client.force_authenticate(user=self.user)
@@ -297,7 +297,7 @@ class AccountsAPITestCase(APITestCase):
         self.assertIn('error', data)
         self.assertIn('required_credit', data)
         self.assertIn('available_credit', data)
-        self.assertEqual(Decimal(data['required_credit']), Decimal('5.00'))
+        self.assertEqual(Decimal(data['required_credit']), Decimal('1.00'))
 
     def test_user_generate_invite_daily_limit(self):
         """Test invite generation fails when daily limit is exceeded"""
@@ -326,3 +326,56 @@ class AccountsAPITestCase(APITestCase):
         self.assertIn('used_today', data)
         self.assertEqual(data['used_today'], 2)
         self.assertEqual(data['limit'], 2)
+
+    def test_user_invite_codes_list(self):
+        """Test listing user's created invite codes"""
+        # Create some invite codes for the user
+        from accounts.models import InviteCode
+        from django.utils import timezone
+        from datetime import timedelta
+
+        self.user.user_class = 'member'
+        self.user.total_credit = Decimal('50.00')
+        self.user.save()
+
+        # Create a used invite code
+        used_invite = InviteCode.objects.create(
+            created_by=self.user,
+            used_by=self.user,  # Self-used for testing
+            expires_at=timezone.now() + timedelta(days=7)
+        )
+
+        # Create an unused invite code
+        unused_invite = InviteCode.objects.create(
+            created_by=self.user,
+            expires_at=timezone.now() + timedelta(days=7)
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get('/api/auth/invite/my-codes/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.data
+        self.assertIn('stats', data)
+        self.assertIn('invite_codes', data)
+
+        # Check stats
+        stats = data['stats']
+        self.assertEqual(stats['total_created'], 2)
+        self.assertEqual(stats['total_used'], 1)
+        self.assertEqual(stats['total_active'], 1)
+
+        # Check invite codes
+        invite_codes = data['invite_codes']
+        self.assertEqual(len(invite_codes), 2)
+
+        # Find the used invite
+        used_invite_data = next(code for code in invite_codes if code['code'] == used_invite.code)
+        self.assertEqual(used_invite_data['used_by_username'], self.user.username)
+        self.assertEqual(used_invite_data['status'], 'used')
+
+        # Find the unused invite
+        unused_invite_data = next(code for code in invite_codes if code['code'] == unused_invite.code)
+        self.assertIsNone(unused_invite_data['used_by_username'])
+        self.assertEqual(unused_invite_data['status'], 'active')

@@ -17,6 +17,46 @@ class InviteCodeSerializer(serializers.ModelSerializer):
         read_only_fields = ['code', 'created_by']
 
 
+class UserInviteCodeSerializer(serializers.ModelSerializer):
+    """Serializer برای نمایش کدهای دعوت کاربر"""
+
+    used_by_username = serializers.SerializerMethodField()
+    created_at_formatted = serializers.SerializerMethodField()
+    expires_at_formatted = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InviteCode
+        fields = [
+            'code', 'created_at', 'created_at_formatted',
+            'expires_at', 'expires_at_formatted', 'is_active',
+            'used_by_username', 'status'
+        ]
+
+    def get_used_by_username(self, obj):
+        """نام کاربری کسی که از کد استفاده کرده"""
+        return obj.used_by.username if obj.used_by else None
+
+    def get_created_at_formatted(self, obj):
+        """تاریخ ایجاد به صورت خوانا"""
+        return obj.created_at.strftime('%Y-%m-%d %H:%M:%S')
+
+    def get_expires_at_formatted(self, obj):
+        """تاریخ انقضا به صورت خوانا"""
+        return obj.expires_at.strftime('%Y-%m-%d %H:%M:%S') if obj.expires_at else None
+
+    def get_status(self, obj):
+        """وضعیت کد دعوت"""
+        if obj.is_used():
+            return 'used'
+        elif obj.is_expired():
+            return 'expired'
+        elif obj.is_active:
+            return 'active'
+        else:
+            return 'inactive'
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """Serializer برای ثبت‌نام کاربر"""
 
@@ -86,6 +126,36 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # تنظیم کد دعوت استفاده شده
         user.invite_code_used = invite_code
         user.save()
+
+        # پاداش به سازنده کد دعوت
+        if invite_code.created_by:
+            from credits.models import CreditTransaction
+            from decimal import Decimal
+
+            INVITE_BONUS = Decimal('10.00')  # 10 credits bonus for successful referral
+
+            # ایجاد تراکنش اعتبار برای سازنده
+            CreditTransaction.objects.create(
+                user=invite_code.created_by,
+                transaction_type='invite_bonus',
+                amount=INVITE_BONUS,
+                description=f'پاداش دعوت کاربر جدید: {user.username}'
+            )
+
+            # لاگ سیستم
+            from logging_monitoring.models import SystemLog
+            SystemLog.objects.create(
+                category='user',
+                level='info',
+                message=f'Invite bonus awarded: {invite_code.created_by.username} (+{INVITE_BONUS} credits) for inviting {user.username}',
+                details={
+                    'inviter_id': invite_code.created_by.id,
+                    'invitee_id': user.id,
+                    'invite_code': invite_code.code,
+                    'bonus_amount': str(INVITE_BONUS)
+                },
+                user=invite_code.created_by
+            )
 
         return user
 

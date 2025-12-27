@@ -174,6 +174,23 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/auth/invite/my-codes/:
+    get:
+      operationId: auth_invite_my_codes_retrieve
+      description: نمایش کدهای دعوت ایجاد شده توسط کاربر
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - Bearer:
+          type: apiKey
+          name: Authorization
+          in: header
+          description: 'JWT Bearer token authentication. Format: Bearer {token}'
+      responses:
+        '200':
+          description: No response body
   /api/user/profile/:
     get:
       operationId: user_profile_retrieve

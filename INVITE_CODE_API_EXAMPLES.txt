@@ -6,12 +6,19 @@
 ENDPOINT DETAILS
 ===============================================================================
 
+GENERATE INVITE CODE:
 URL: POST /api/auth/invite/generate/
 Authentication: Required (JWT Bearer Token)
 Content-Type: application/json
-Cost: 5.00 credits per invite code
+Cost: 1.00 credits per invite code (10.00 bonus when used!)
 Requirements: User must be member, trusted, or elite class
 Limits: Maximum 2 invite codes per day
+Bonus: Creators get 10.00 credits when their invite codes are used
+
+LIST USER'S INVITE CODES:
+URL: GET /api/auth/invite/my-codes/
+Authentication: Required (JWT Bearer Token)
+Shows all invite codes created by the user with usage statistics, success rates, and who used each code
 
 ===============================================================================
 REQUEST FORMAT
@@ -48,8 +55,9 @@ Response (201 Created):
 }
 
 Side Effects:
-- 5.00 credits deducted from user balance
+- 1.00 credits deducted from user balance
 - Invite code expires in 7 days
+- Creator gets 10.00 bonus credits when code is used
 - System log created for audit trail
 
 ===============================================================================
@@ -77,7 +85,7 @@ CASE 3: INSUFFICIENT CREDITS (HTTP 402)
 
 Prerequisites:
 - User class: member, trusted, or elite
-- Available credits: < 5.00
+- Available credits: < 1.00
 
 Request:
 POST /api/auth/invite/generate/
@@ -87,9 +95,9 @@ Content-Type: application/json
 Response (402 Payment Required):
 {
   "error": "اعتبار کافی نیست",
-  "required_credit": "5.00",
-  "available_credit": "2.50",
-  "shortage": "2.50"
+  "required_credit": "1.00",
+  "available_credit": "0.50",
+  "shortage": "0.50"
 }
 
 ===============================================================================
@@ -128,6 +136,50 @@ Content-Type: application/json
 Response (401 Unauthorized):
 {
   "detail": "Authentication credentials were not provided."
+}
+
+===============================================================================
+LIST USER'S INVITE CODES ENDPOINT
+===============================================================================
+
+===============================================================================
+CASE 6: LIST USER'S CREATED INVITE CODES (HTTP 200)
+===============================================================================
+
+Request:
+GET /api/auth/invite/my-codes/
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+
+Response (200 OK):
+{
+  "stats": {
+    "total_created": 3,
+    "total_used": 2,
+    "total_active": 1,
+    "success_rate": 66.7
+  },
+  "invite_codes": [
+    {
+      "code": "PTAW0R59O20A",
+      "created_at": "2025-01-03T18:22:51.075938Z",
+      "created_at_formatted": "2025-01-03 18:22:51",
+      "expires_at": "2025-01-10T18:22:51.075938Z",
+      "expires_at_formatted": "2025-01-10 18:22:51",
+      "is_active": true,
+      "used_by_username": null,
+      "status": "active"
+    },
+    {
+      "code": "XYZ789GHI012",
+      "created_at": "2025-01-02T15:30:00.000000Z",
+      "created_at_formatted": "2025-01-02 15:30:00",
+      "expires_at": "2025-01-09T15:30:00.000000Z",
+      "expires_at_formatted": "2025-01-09 15:30:00",
+      "is_active": true,
+      "used_by_username": "newuser_john",
+      "status": "used"
+    }
+  ]
 }
 
 ===============================================================================
@@ -190,12 +242,16 @@ To generate invite codes, users must have one of these classes:
 Newbie users cannot generate invite codes and will receive HTTP 403.
 
 ===============================================================================
-CREDIT REQUIREMENTS
+CREDIT REQUIREMENTS & REFERRAL BONUSES
 ===============================================================================
 
-- Cost per invite code: 5.00 credits
-- Credits are deducted immediately upon successful generation
+- Cost per invite code: 1.00 credits (low cost to encourage sharing!)
+- Bonus for successful referrals: 10.00 credits awarded to creator
+- Net profit per successful invite: +9.00 credits
+- Credits deducted immediately upon generation
+- Bonus credits awarded automatically when invite code is used for registration
 - Users must have sufficient available credits (total_credit - locked_credit)
+- Referral system creates positive incentive for user engagement
 
 ===============================================================================
 DAILY LIMITS
@@ -223,11 +279,39 @@ curl -X POST http://127.0.0.1:8000/api/auth/register/ \
   -H "Content-Type: application/json" \
   -d '{
     "username": "newuser",
-    "email": "newuser@example.com",
+    "email": "newuser@localhost",
     "password": "securepass123",
     "password_confirm": "securepass123",
-    "invite_code": "PTAW0R59O20A"
+    "invite_code": "F9MZXUPXPFXT"
   }'
+
+# Creator gets 10.00 bonus credits automatically!
+
+# List all your created invite codes
+curl -X GET http://127.0.0.1:8000/api/auth/invite/my-codes/ \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Response shows stats and detailed invite information
+{
+  "stats": {
+    "total_created": 3,
+    "total_used": 2,
+    "total_active": 1,
+    "success_rate": 66.7
+  },
+  "invite_codes": [
+    {
+      "code": "F9MZXUPXPFXT",
+      "created_at": "2025-01-03T19:08:23.000000Z",
+      "created_at_formatted": "2025-01-03 19:08:23",
+      "expires_at": "2025-01-10T19:08:23.000000Z",
+      "expires_at_formatted": "2025-01-10 19:08:23",
+      "is_active": true,
+      "used_by_username": "new_invitee",
+      "status": "used"
+    }
+  ]
+}
 
 ===============================================================================
 ADMIN INVITE CODE GENERATION (DIFFERENT ENDPOINT)
