@@ -226,9 +226,10 @@ class CreditsAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.data
-        self.assertIn('ratio', data)
+        self.assertIn('current_ratio', data)
         self.assertIn('status', data)
-        self.assertIn('warning_level', data)
+        self.assertIn('lifetime_upload', data)
+        self.assertIn('lifetime_download', data)
 
     def test_adjust_user_credit_admin_only(self):
         """Test that only admins can adjust user credits"""
