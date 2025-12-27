@@ -127,7 +127,9 @@ class Peer(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='peers'
+        related_name='peers',
+        null=True,
+        blank=True
     )
     peer_id = models.CharField(max_length=40)  # 20 bytes hex encoded
     ip_address = models.GenericIPAddressField()

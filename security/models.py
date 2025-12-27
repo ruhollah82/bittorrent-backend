@@ -77,7 +77,9 @@ class AnnounceLog(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='announce_logs'
+        related_name='announce_logs',
+        null=True,
+        blank=True
     )
     torrent = models.ForeignKey(
         'torrents.Torrent',

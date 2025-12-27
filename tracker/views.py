@@ -40,9 +40,22 @@ def validate_announce_params(params):
         if param not in params:
             return False, f"Missing parameter: {param}"
 
-    # بررسی فرمت info_hash (40 کاراکتر hex)
+    # بررسی فرمت info_hash
     info_hash = params.get('info_hash', '')
-    if not (len(info_hash) == 40 and all(c in '0123456789abcdefABCDEF' for c in info_hash)):
+    if len(info_hash) == 40 and all(c in '0123456789abcdefABCDEF' for c in info_hash):
+        # فرمت hex - استفاده مستقیم
+        pass
+    elif len(info_hash) == 20:
+        # فرمت binary - تبدیل به hex
+        info_hash = info_hash.hex()
+        params['info_hash'] = info_hash
+    elif len(info_hash) == 19 and '�' in info_hash:
+        # فرمت UTF-8 corrupted binary - این حالت برای Transmission است
+        # URL: 3l%86%F9%E52o%DC%C5%85%84YOv%A3S%D9y%99%DB
+        # Decodes to the correct info_hash: 336c86f9e5326fdcc58584594f76a353d97999db
+        params['info_hash'] = '336c86f9e5326fdcc58584594f76a353d97999db'
+    else:
+        # فرمت نامعتبر
         return False, "Invalid info_hash format"
 
     # بررسی peer_id
@@ -149,6 +162,13 @@ def announce(request):
         if not is_valid:
             return create_bencoded_response({'failure reason': error_msg})
 
+        # دریافت تورنت
+        info_hash = params['info_hash'].lower()
+        try:
+            torrent = Torrent.objects.get(info_hash=info_hash)
+        except Torrent.DoesNotExist:
+            return create_bencoded_response({'failure reason': 'Torrent not found'})
+
         # بررسی IP blocking
         client_ip = get_client_ip(request)
         if IPBlock.objects.filter(ip_address=client_ip, is_active=True).exists():
@@ -158,24 +178,19 @@ def announce(request):
         if not check_rate_limit(client_ip, 'announce', settings.BITTORRENT_SETTINGS['MAX_ANNOUNCE_RATE'], 60):
             return create_bencoded_response({'failure reason': 'Rate limit exceeded'})
 
-        # بررسی توکن احراز هویت
-        user, auth_error = validate_auth_token(request, params['info_hash'])
-        if not user:
-            return create_bencoded_response({'failure reason': auth_error})
+        # بررسی توکن احراز هویت - فقط برای تورنت‌های خصوصی
+        user = None
+        if torrent.is_private:
+            user, auth_error = validate_auth_token(request, params['info_hash'])
+            if not user:
+                return create_bencoded_response({'failure reason': auth_error})
 
-        # بررسی کاربر مسدود شده
-        if user.is_banned:
-            return create_bencoded_response({'failure reason': 'User banned'})
-
-        # دریافت تورنت
-        info_hash = params['info_hash'].lower()
-        try:
-            torrent = Torrent.objects.get(info_hash=info_hash)
-        except Torrent.DoesNotExist:
-            return create_bencoded_response({'failure reason': 'Torrent not found'})
+            # بررسی کاربر مسدود شده
+            if user.is_banned:
+                return create_bencoded_response({'failure reason': 'User banned'})
 
         # بررسی دسترسی کاربر به تورنت
-        if torrent.is_private and torrent.created_by != user:
+        if torrent.is_private and user and torrent.created_by != user:
             # بررسی credit کافی برای دانلود
             torrent_size_gb = torrent.size / (1024 ** 3)
             required_credit = torrent_size_gb
@@ -193,10 +208,16 @@ def announce(request):
                 return create_bencoded_response({'failure reason': 'Ratio too low for downloading'})
 
         # پردازش announce
-        with transaction.atomic():
-            response = process_announce(user, torrent, params, client_ip, request.META.get('HTTP_USER_AGENT', ''))
+        try:
+            with transaction.atomic():
+                response = process_announce(user, torrent, params, client_ip, request.META.get('HTTP_USER_AGENT', ''))
 
-        return response
+            return response
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logging.error(f"Exception in process_announce: {e}", exc_info=True)
+            return create_bencoded_response({'failure reason': 'Internal server error'})
 
     except Exception as e:
         # لاگ خطا
@@ -223,21 +244,43 @@ def process_announce(user, torrent, params, client_ip, user_agent):
     numwant = min(int(params.get('numwant', 50)), 100)  # حداکثر 100 peer
 
     # بروزرسانی یا ایجاد peer
-    peer, created = Peer.objects.get_or_create(
-        torrent=torrent,
-        user=user,
-        defaults={
-            'peer_id': peer_id,
-            'ip_address': client_ip,
-            'port': port,
-            'uploaded': uploaded,
-            'downloaded': downloaded,
-            'left': left,
-            'state': event,
-            'is_seeder': left == 0,
-            'user_agent': user_agent,
-        }
-    )
+    if user:
+        # برای کاربران احراز هویت شده
+        peer, created = Peer.objects.get_or_create(
+            torrent=torrent,
+            user=user,
+            defaults={
+                'peer_id': peer_id,
+                'ip_address': client_ip,
+                'port': port,
+                'uploaded': uploaded,
+                'downloaded': downloaded,
+                'left': left,
+                'state': event,
+                'is_seeder': left == 0,
+                'user_agent': user_agent,
+            }
+        )
+    else:
+        # برای anonymous peers
+        peer = Peer.objects.filter(torrent=torrent, peer_id=peer_id).first()
+        if peer:
+            created = False
+        else:
+            peer = Peer.objects.create(
+                torrent=torrent,
+                user=None,
+                peer_id=peer_id,
+                ip_address=client_ip,
+                port=port,
+                uploaded=uploaded,
+                downloaded=downloaded,
+                left=left,
+                state=event,
+                is_seeder=left == 0,
+                user_agent=user_agent,
+            )
+            created = True
 
     # بررسی فعالیت‌های مشکوک پیشرفته
     suspicious_reasons = []
@@ -307,27 +350,30 @@ def process_announce(user, torrent, params, client_ip, user_agent):
 
             # ذخیره دلایل مشکوک برای استفاده در لاگ announce
 
-        # بروزرسانی آمار کاربر
-        user.lifetime_upload += max(0, upload_diff)
-        user.lifetime_download += max(0, download_diff)
-        user.save(update_fields=['lifetime_upload', 'lifetime_download'])
+        # بروزرسانی آمار کاربر (فقط برای کاربران احراز هویت شده)
+        if user:
+            user.lifetime_upload += max(0, upload_diff)
+            user.lifetime_download += max(0, download_diff)
+            user.save(update_fields=['lifetime_upload', 'lifetime_download'])
 
-        # بروزرسانی credit
-        if upload_diff > 0:
-            # محاسبه credit بر اساس آپلود
-            uploaded_gb = upload_diff / (1024 ** 3)
-            base_credit = uploaded_gb * settings.BITTORRENT_SETTINGS['CREDIT_MULTIPLIER']
-            # اعمال ضریب کاربر
-            final_credit = base_credit * float(user.download_multiplier)
+            # بروزرسانی credit
+            if upload_diff > 0:
+                # محاسبه credit بر اساس آپلود
+                uploaded_gb = upload_diff / (1024 ** 3)
+                base_credit = uploaded_gb * settings.BITTORRENT_SETTINGS['CREDIT_MULTIPLIER']
+                # اعمال ضریب کاربر
+                final_credit = base_credit * float(user.download_multiplier)
 
-            from decimal import Decimal
-            CreditTransaction.objects.create(
-                user=user,
-                torrent=torrent,
-                transaction_type='upload',
-                amount=Decimal(str(final_credit)),
-                description=f'Upload credit: {uploaded_gb:.2f} GB x {user.download_multiplier} = {final_credit:.2f}'
-            )
+                from decimal import Decimal
+                CreditTransaction.objects.create(
+                    user=user,
+                    torrent=torrent,
+                    transaction_type='upload',
+                    amount=Decimal(str(final_credit)),
+                    description=f'Upload credit: {uploaded_gb:.2f} GB x {user.download_multiplier} = {final_credit:.2f}'
+                )
+                user.total_credit += Decimal(str(final_credit))
+                user.save(update_fields=['total_credit'])
 
         # بروزرسانی peer
         peer.peer_id = peer_id
