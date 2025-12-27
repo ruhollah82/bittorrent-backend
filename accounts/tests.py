@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework import status
 from datetime import timedelta
+from decimal import Decimal
 
 from .models import InviteCode, AuthToken
 
@@ -242,3 +243,86 @@ class AccountsAPITestCase(APITestCase):
         response = self.client.post(self.register_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('invite_code', response.data)
+
+    def test_user_generate_invite_success(self):
+        """Test successful invite code generation by regular user"""
+        # Set up user with member class and sufficient credits
+        self.user.user_class = 'member'
+        self.user.total_credit = Decimal('10.00')
+        self.user.save()
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post('/api/auth/invite/generate/')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        data = response.data
+        self.assertIn('code', data)
+        self.assertIn('expires_at', data)
+        self.assertTrue(data['is_active'])
+
+        # Verify invite was created
+        invite = InviteCode.objects.get(code=data['code'])
+        self.assertEqual(invite.created_by, self.user)
+
+        # Verify credits were deducted
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.available_credit, Decimal('5.00'))
+
+    def test_user_generate_invite_insufficient_class(self):
+        """Test invite generation fails for newbie users"""
+        # User remains newbie (default)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post('/api/auth/invite/generate/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        data = response.data
+        self.assertIn('error', data)
+        self.assertIn('current_class', data)
+        self.assertEqual(data['current_class'], 'newbie')
+
+    def test_user_generate_invite_insufficient_credits(self):
+        """Test invite generation fails with insufficient credits"""
+        self.user.user_class = 'member'
+        self.user.total_credit = Decimal('2.00')  # Less than required 5.00
+        self.user.save()
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post('/api/auth/invite/generate/')
+        self.assertEqual(response.status_code, status.HTTP_402_PAYMENT_REQUIRED)
+
+        data = response.data
+        self.assertIn('error', data)
+        self.assertIn('required_credit', data)
+        self.assertIn('available_credit', data)
+        self.assertEqual(Decimal(data['required_credit']), Decimal('5.00'))
+
+    def test_user_generate_invite_daily_limit(self):
+        """Test invite generation fails when daily limit is exceeded"""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        self.user.user_class = 'member'
+        self.user.total_credit = Decimal('50.00')
+        self.user.save()
+
+        # Create 2 invites for today (the limit)
+        today = timezone.now()
+        for i in range(2):
+            InviteCode.objects.create(
+                created_by=self.user,
+                expires_at=today + timedelta(days=7)
+            )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post('/api/auth/invite/generate/')
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        data = response.data
+        self.assertIn('error', data)
+        self.assertIn('used_today', data)
+        self.assertEqual(data['used_today'], 2)
+        self.assertEqual(data['limit'], 2)
