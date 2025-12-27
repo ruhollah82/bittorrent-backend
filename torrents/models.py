@@ -4,6 +4,26 @@ from django.utils import timezone
 import hashlib
 
 
+class Category(models.Model):
+    """مدل دسته‌بندی تورنت"""
+
+    name = models.CharField(max_length=50, unique=True)
+    slug = models.SlugField(max_length=50, unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True)  # Icon name/class
+    color = models.CharField(max_length=7, blank=True)  # Hex color code
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Category'
+        verbose_name_plural = 'Categories'
+
+
 class Torrent(models.Model):
     """مدل تورنت"""
 
@@ -22,7 +42,13 @@ class Torrent(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
     is_private = models.BooleanField(default=True)
-    category = models.CharField(max_length=50, blank=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='torrents'
+    )
     tags = models.JSONField(default=list, blank=True)  # لیست تگ‌ها
 
     # Metadata
