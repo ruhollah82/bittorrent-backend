@@ -6,8 +6,10 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth import authenticate
+from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal
 import secrets
 import hashlib
 import hmac
@@ -406,6 +408,100 @@ def create_invite_code(request):
         created_by=request.user,
         expires_at=expires_at
     )
+
+    serializer = InviteCodeSerializer(invite)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def user_create_invite_code(request):
+    """ایجاد کد دعوت توسط کاربر عادی (نیاز به کلاس member یا بالاتر)"""
+
+    user = request.user
+
+    # بررسی کلاس کاربری (حداقل member)
+    allowed_classes = ['member', 'trusted', 'elite']
+    if user.user_class not in allowed_classes:
+        return Response(
+            {
+                'error': 'دسترسی غیرمجاز',
+                'message': f'برای ایجاد کد دعوت نیاز به ارتقا کلاس کاربری به یکی از سطوح {", ".join(allowed_classes)} دارید',
+                'current_class': user.user_class
+            },
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # هزینه ایجاد کد دعوت (5 credit)
+    INVITE_COST = Decimal('5.00')
+    if user.available_credit < INVITE_COST:
+        return Response(
+            {
+                'error': 'اعتبار کافی نیست',
+                'required_credit': INVITE_COST,
+                'available_credit': user.available_credit,
+                'shortage': INVITE_COST - user.available_credit
+            },
+            status=status.HTTP_402_PAYMENT_REQUIRED
+        )
+
+    # بررسی محدودیت روزانه (حداکثر 2 کد در روز)
+    from django.utils import timezone
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_invites = InviteCode.objects.filter(
+        created_by=user,
+        created_at__gte=today_start
+    ).count()
+
+    if today_invites >= 2:
+        return Response(
+            {
+                'error': 'محدودیت روزانه',
+                'message': 'شما نمی‌توانید بیش از 2 کد دعوت در روز ایجاد کنید',
+                'used_today': today_invites,
+                'limit': 2
+            },
+            status=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+
+    # ایجاد کد دعوت
+    try:
+        with transaction.atomic():
+            # کسر اعتبار
+            from credits.models import CreditTransaction
+            credit_transaction = CreditTransaction.objects.create(
+                user=user,
+                transaction_type='penalty',
+                amount=INVITE_COST,
+                description='هزینه ایجاد کد دعوت'
+            )
+
+            # ایجاد کد دعوت (انقضا 7 روزه برای کاربران عادی)
+            expires_at = timezone.now() + timedelta(days=7)
+            invite = InviteCode.objects.create(
+                created_by=user,
+                expires_at=expires_at
+            )
+
+            # لاگ سیستم
+            from logging_monitoring.models import SystemLog
+            SystemLog.objects.create(
+                category='user',
+                level='info',
+                message=f'User {user.username} created invite code: {invite.code}',
+                details={
+                    'user_id': user.id,
+                    'invite_code': invite.code,
+                    'cost': str(INVITE_COST)
+                },
+                user=user
+            )
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
     serializer = InviteCodeSerializer(invite)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
