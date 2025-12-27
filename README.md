@@ -126,6 +126,7 @@ POST /api/auth/register/     # User registration with invite code
 POST /api/auth/login/        # JWT token authentication
 POST /api/auth/refresh/      # Token refresh
 POST /api/auth/invite/create/ # Create invite codes (admin)
+POST /api/auth/invite/generate/ # Generate invite codes (regular users)
 ```
 
 ### 👤 **User Management**
@@ -155,7 +156,7 @@ GET  /api/torrents/         # Torrent list
 GET  /api/torrents/categories/ # Categories
 GET  /api/torrents/popular/ # Popular torrents
 GET  /api/torrents/my-torrents/ # User's torrents
-POST /api/torrents/upload/  # Upload torrent
+POST /api/torrents/upload/  # Upload torrent (reactivates deleted torrents)
 ```
 
 ### 🛡️ **Security & Monitoring**
