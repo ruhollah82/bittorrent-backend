@@ -2,217 +2,260 @@
 
 > **Empowering Peer-to-Peer File Sharing with Enterprise-Grade Security**
 
-A comprehensive, production-ready BitTorrent private tracker backend that redefines peer-to-peer file sharing through advanced security, intelligent credit systems, and real-time monitoring capabilities.
+A comprehensive, production-ready BitTorrent private tracker backend built with Django REST Framework. Features advanced security, intelligent credit systems, real-time monitoring, and a complete API ecosystem for modern torrent management.
 
-## ✨ Revolutionary Features
+## ✨ **Features**
 
-### 🎯 **Fully Implemented Core Systems**
-- **🔐 Advanced Authentication**: Dual-layer JWT + HMAC token system for unparalleled tracker security
-- **💰 Intelligent Credit Economy**: Upload/download ratio-based economic model with dynamic rewards
-- **📡 BitTorrent Protocol Mastery**: Complete announce/scrape implementation with protocol extensions
-- **🛡️ Fortified Security**: Anti-cheat detection, intelligent IP blocking, and adaptive rate limiting
-- **📊 Comprehensive Logging**: Multi-layered system logs, user activity tracking, and intelligent alert systems
-- **🎛️ Administrative Excellence**: Real-time dashboard with live metrics and administrative controls
-- **🏆 User Classification System**: Progressive user tiers (Newbie → Member → Trusted → Elite) with escalating privileges
+### 🎯 **Core Systems**
+- **🔐 Authentication**: JWT tokens with invite-based registration
+- **💰 Credit System**: Upload/download ratio tracking with user classes (Newbie → Elite)
+- **📡 BitTorrent Tracker**: Full announce/scrape protocol implementation
+- **🛡️ Security**: IP blocking, rate limiting, and suspicious activity monitoring
+- **📊 Monitoring**: Comprehensive logging and real-time analytics
+- **🎛️ Admin Panel**: User management and system configuration
+- **📱 REST API**: Complete API with OpenAPI/Swagger documentation
 
-### 🛠️ **Cutting-Edge Technology Stack**
-- **Backend Framework**: Django 5.2 with Django REST Framework for robust API architecture
-- **Database Solutions**: PostgreSQL for production scalability, SQLite for development agility
-- **Performance Layer**: Redis-powered caching and session management
-- **Asynchronous Processing**: Celery task queue with Redis broker for background operations
-- **Security Protocol**: Dual authentication with JWT tokens and HMAC signatures
-- **API Documentation**: Interactive Swagger/OpenAPI documentation with live testing
+### 🛠️ **Technology Stack**
+- **Backend**: Django 5.2 + Django REST Framework
+- **Database**: PostgreSQL (prod) / SQLite (dev)
+- **Cache**: Redis for sessions and caching
+- **Tasks**: Celery with Redis broker
+- **Testing**: Comprehensive integration test suite (18 tests)
+- **Documentation**: Interactive API docs with Swagger UI
 
-## 🏗️ **Architectural Blueprint**
+## 📂 **Project Structure**
 
 ```
 bittorrent-backend/
-├── core/                    # Django core configuration and settings
-├── accounts/               # User management and authentication system
-├── tracker/                # BitTorrent protocol announce/scrape endpoints
-├── credits/                # Credit engine and economic modeling
-├── torrents/               # Torrent metadata and file management
-├── security/               # Anti-cheat and threat detection systems
-├── admin_panel/           # Administrative dashboard and controls
-├── logging_monitoring/    # System monitoring and analytics
-├── api/                   # REST API configuration and routing
-├── utils/                 # Shared utilities and helper functions
-└── venv/                  # Python virtual environment
+├── core/                    # Django settings and configuration
+├── accounts/               # User authentication and profiles
+├── api/                    # REST API routing
+├── credits/                # Credit system and transactions
+├── torrents/               # Torrent management
+├── tracker/                # BitTorrent protocol endpoints
+├── security/               # Security monitoring
+├── admin_panel/           # Admin interface
+├── logging_monitoring/    # System logs and monitoring
+├── utils/                 # Helper utilities
+├── venv/                  # Python virtual environment
+├── db.sqlite3             # SQLite database (created)
+├── .env                   # Environment variables (created)
+├── manage.py              # Django management script
+├── requirements.txt       # Python dependencies
+├── integration_test.py    # Comprehensive test suite
+├── setup_and_run.py       # Cross-platform setup script
+├── setup_and_run.sh       # Unix setup script
+├── setup_and_run.bat      # Windows setup script
+├── SETUP_README.md        # Detailed setup guide
+└── README.md              # This file
 ```
 
-## 🚀 **Launch Sequence: Installation & Deployment**
+## 🚀 **Quick Start**
 
-### 📋 **System Prerequisites**
-- **Python**: Version 3.11 or higher
-- **Database**: PostgreSQL (recommended) or SQLite (development)
-- **Cache Store**: Redis server for session and cache management
-- **Version Control**: Git for repository management
+### ⚡ **Automated Setup (Recommended)**
 
-### ⚡ **Quick Start Installation**
+Choose your platform and run the setup script:
 
+#### **Linux/macOS**
 ```bash
-# Clone the revolutionary repository
+# Download/clone the repository
 git clone <repository-url>
 cd bittorrent-backend
 
-# Initialize isolated Python environment
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac environment
-# For Windows: venv\Scripts\activate
+# Run automated setup
+./setup_and_run.py
+```
 
-# Install dependency ecosystem
+#### **Windows**
+```cmd
+# Download/clone the repository
+git clone <repository-url>
+cd bittorrent-backend
+
+# Run automated setup
+setup_and_run.bat
+```
+
+> **🎉 That's it!** The server will be running at `http://127.0.0.1:8000` with a default admin account.
+
+### 📋 **Manual Setup (Alternative)**
+
+For advanced users or custom configurations:
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd bittorrent-backend
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate    # Windows
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Configure environment variables
+# Setup environment
 cp env.example .env
-# Edit .env file with your custom configuration
+# Edit .env as needed
 
-# Execute database migrations
+# Database setup
 python manage.py migrate
-
-# Create administrative superuser
 python manage.py createsuperuser
-
-# Initialize administrative dashboard
 python manage.py setup_admin
 
-# Launch development server
+# Start server
 python manage.py runserver
 ```
 
-> **🎉 Congratulations!** Your BitTorrent tracker is now operational at `http://localhost:8000`
+### 🧪 **Verify Installation**
 
-## 🔗 **API Ecosystem: Complete Endpoint Reference**
+Test your setup with the comprehensive test suite:
 
-### 🔐 **Authentication & Access Control**
-```http
-POST /api/auth/register/     # User registration with invite code validation
-POST /api/auth/login/        # JWT token generation and user authentication
-POST /api/auth/refresh/      # Seamless token refresh for continuous sessions
+```bash
+python integration_test.py
 ```
 
-### 👤 **User Management & Profiles**
+> **✅ All 18 tests should pass!**
+
+## 🔗 **API Endpoints**
+
+### 🔐 **Authentication**
 ```http
-GET  /api/user/profile/      # Comprehensive user profile information
-GET  /api/user/stats/        # Detailed user statistics and metrics
-POST /api/user/tokens/       # HMAC token generation and management
+POST /api/auth/register/     # User registration with invite code
+POST /api/auth/login/        # JWT token authentication
+POST /api/auth/refresh/      # Token refresh
+POST /api/auth/invite/create/ # Create invite codes (admin)
 ```
 
-### 📡 **BitTorrent Protocol Integration**
+### 👤 **User Management**
 ```http
-GET  /announce              # Core announce endpoint for peer coordination
-GET  /scrape                # Torrent statistics and peer information
+GET  /api/user/profile/      # User profile
+GET  /api/user/stats/        # User statistics
+GET  /api/user/tokens/       # Auth tokens list
+POST /api/user/tokens/       # Create auth token
 ```
 
-### 💰 **Credit Economy & Financial System**
+### 📡 **BitTorrent Protocol**
 ```http
-GET  /api/credits/balance/  # Real-time credit balance inquiry
-GET  /api/credits/transactions/  # Complete transaction history log
-GET  /api/credits/user-classes/  # User classification and privilege details
+GET  /announce              # Tracker announce (BitTorrent protocol)
+GET  /scrape               # Torrent statistics
 ```
 
-### 📁 **Torrent Management Suite**
+### 💰 **Credits System**
 ```http
-GET  /api/torrents/         # Comprehensive torrent catalog
-GET  /api/torrents/{hash}/  # Detailed torrent metadata and information
-GET  /api/torrents/popular/ # Trending and popular torrent discovery
+GET  /api/credits/balance/  # Credit balance
+GET  /api/credits/transactions/ # Transaction history
+GET  /api/credits/ratio-status/ # Upload/download ratio
 ```
 
-### 🛡️ **Security Operations Center**
+### 📁 **Torrent Management**
 ```http
-GET  /api/security/stats/   # Security metrics and threat intelligence
-GET  /api/security/suspicious-activities/  # Anomaly detection and alerts
-GET  /api/security/announce-logs/  # Comprehensive announce activity logs
+GET  /api/torrents/         # Torrent list
+GET  /api/torrents/categories/ # Categories
+GET  /api/torrents/popular/ # Popular torrents
+GET  /api/torrents/my-torrents/ # User's torrents
+POST /api/torrents/upload/  # Upload torrent
 ```
 
-### 📊 **Monitoring & Analytics Hub**
+### 🛡️ **Security & Monitoring**
 ```http
-GET  /api/logs/dashboard/   # Real-time system monitoring dashboard
-GET  /api/logs/system-logs/ # Detailed system activity logs
-GET  /api/logs/health/      # System health and performance diagnostics
+GET  /api/security/stats/   # Security statistics
+GET  /api/logs/health/      # System health check
 ```
 
-### 🎛️ **Administrative Control Center**
-```http
-GET  /api/admin/dashboard/  # Administrative oversight dashboard
-GET  /api/admin/users/      # User management and moderation tools
-GET  /api/admin/system-config/  # System configuration management
-POST /api/admin/reports/generate/  # Automated report generation system
-```
+### 📖 **API Documentation**
+- **Swagger UI**: `http://127.0.0.1:8000/api/docs/`
+- **OpenAPI Schema**: `http://127.0.0.1:8000/api/schema/`
 
-## ⚙️ **Configuration Matrix: Environment & System Settings**
+## ⚙️ **Configuration**
 
-### 🌍 **Environment Variables Configuration**
+### 📁 **Environment Setup**
+The automated setup creates a `.env` file from `env.example`. Key settings:
+
 ```env
-# Core Django Security
-SECRET_KEY=your-ultra-secure-secret-key-here
+# Django Configuration
+SECRET_KEY=your-secret-key
 DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1,yourdomain.com
+ALLOWED_HOSTS=localhost,127.0.0.1,testserver
 
-# Database Configuration
-DB_ENGINE=django.db.backends.postgresql
-DB_NAME=bittorrent_production_db
-DB_USER=your_database_admin
-DB_PASSWORD=your_secure_database_password
-DB_HOST=localhost
-DB_PORT=5432
+# Database (SQLite for development, PostgreSQL for production)
+DB_ENGINE=django.db.backends.sqlite3
+DB_NAME=db.sqlite3
 
-# Redis Cache & Session Store
+# Redis (optional for caching and sessions)
 REDIS_URL=redis://127.0.0.1:6379/1
 
-# BitTorrent Protocol Parameters
+# BitTorrent Settings
 TRACKER_ANNOUNCE_INTERVAL=1800
-MAX_TORRENTS_PER_USER=10
 CREDIT_MULTIPLIER=1.0
-MIN_RATIO_WARNING=0.5
 ```
 
-### 🎮 **Management Commands Arsenal**
+### 🛠️ **Management Commands**
 ```bash
-# Generate invitation codes for new user onboarding
-python manage.py create_invite --count 10
+# Create invite codes for user registration
+python manage.py create_invite --count 5 --expires 30
 
-# Execute daily statistics update and system maintenance
-python manage.py update_stats
-
-# Deploy and configure administrative dashboard
+# Setup admin panel and system configuration
 python manage.py setup_admin
+
+# Create superuser account
+python manage.py createsuperuser
+
+# Run database migrations
+python manage.py migrate
 ```
 
-### ⚡ **Asynchronous Task Processing**
+### ⚡ **Background Tasks (Optional)**
 ```bash
-# Launch Celery worker for background task processing
+# Start Celery worker
 celery -A core worker --loglevel=info
 
-# Initialize Celery beat scheduler for periodic tasks
+# Start Celery beat scheduler
 celery -A core beat --loglevel=info
 ```
 
-## 🧪 **Quality Assurance: Comprehensive Testing Suite**
+## 🧪 **Testing**
 
-### 🧬 **Automated Test Execution**
+### 📊 **Comprehensive Integration Tests**
+Run the complete test suite covering all major functionality:
+
 ```bash
-# Execute complete test suite across all modules
+# Run all integration tests (18 tests covering complete user journey)
+python integration_test.py
+
+# Expected output: "Results: 18/18 tests passed"
+```
+
+**Test Coverage:**
+- ✅ User registration and authentication
+- ✅ Profile management and user stats
+- ✅ Credit system and transactions
+- ✅ BitTorrent tracker functionality
+- ✅ Torrent management and categories
+- ✅ Security monitoring
+- ✅ API endpoints and error handling
+
+### 🧬 **Django Unit Tests**
+```bash
+# Run Django's built-in test suite
 python manage.py test
 
-# Run specific module tests for focused debugging
-python manage.py test accounts.tests
-python manage.py test tracker.tests
-python manage.py test security.tests
+# Run specific app tests
+python manage.py test accounts
+python manage.py test torrents
 ```
 
-### 🔬 **API Integration Testing**
+### 🔬 **API Health Check**
 ```bash
-# Verify system health and operational status
-curl http://localhost:8000/api/logs/health/
+# Quick health verification
+curl http://127.0.0.1:8000/api/logs/health/
 
-# Test authentication endpoint with sample credentials
-curl -X POST http://localhost:8000/api/auth/login/ \
+# Test authentication
+curl -X POST http://127.0.0.1:8000/api/auth/login/ \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your_secure_password"}'
+  -d '{"username":"admin","password":"admin123"}'
 ```
-
-> **💡 Pro Tip:** Integrate these tests into your CI/CD pipeline for continuous quality assurance!
 
 ## 🔐 **Fortress Security: Advanced Protection Systems**
 
@@ -250,98 +293,64 @@ curl -X POST http://localhost:8000/api/auth/login/ \
 
 > **🎯 Insight**: Our monitoring system provides 360-degree visibility into your BitTorrent ecosystem!
 
-## 🚀 **Production Deployment: Enterprise-Grade Launch**
+## 🚀 **Production Deployment**
 
-### 🏭 **Production Environment Configuration**
+### 🏭 **Recommended Production Stack**
+- **Database**: PostgreSQL with connection pooling
+- **Application Server**: Gunicorn with 4+ workers
+- **Reverse Proxy**: Nginx with SSL/TLS termination
+- **Cache**: Redis cluster for sessions and caching
+- **SSL**: Let's Encrypt with automatic renewal
+- **Monitoring**: Health checks and logging
+- **Backups**: Automated database backups
+
+### 🐳 **Docker Deployment**
 ```bash
-# Database: PostgreSQL with connection pooling
-# Application Server: Gunicorn with optimized worker configuration
-# Reverse Proxy: Nginx with SSL termination and load balancing
-# SSL/TLS: Let's Encrypt certificates with automatic renewal
-# Cache Layer: Redis cluster for high availability
-# Task Processing: Celery with Redis broker and result backend
-# Log Management: Centralized logging with log rotation
-# Monitoring Stack: Prometheus metrics with Grafana dashboards
-# Backup Strategy: Automated encrypted database backups
+# Build container
+docker build -t bittorrent-backend .
+
+# Run with environment variables
+docker run -p 8000:8000 \
+  -e DEBUG=False \
+  -e SECRET_KEY=your-production-secret \
+  -e DB_ENGINE=django.db.backends.postgresql \
+  bittorrent-backend
 ```
 
-### 🐳 **Docker Containerization**
-```dockerfile
-FROM python:3.11-slim
-
-# Optimize for production deployment
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-# Install system dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Create non-root user for security
-RUN useradd --create-home --shell /bin/bash app \
-    && chown -R app:app /app
-USER app
-
-EXPOSE 8000
-
-# Health check for container orchestration
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/logs/health/ || exit 1
-
-CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]
+### ⚙️ **Environment Variables for Production**
+```env
+DEBUG=False
+SECRET_KEY=your-secure-production-key
+ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+DB_ENGINE=django.db.backends.postgresql
+# ... PostgreSQL and Redis configuration
 ```
 
-## 📚 **API Documentation & Developer Resources**
+## 📚 **Documentation**
 
-### 🔍 **Interactive API Explorer**
-Access comprehensive API documentation with live testing capabilities:
+### 📖 **API Documentation**
+- **Swagger UI**: `http://127.0.0.1:8000/api/docs/`
+- **OpenAPI Schema**: `http://127.0.0.1:8000/api/schema/`
+- **Setup Guide**: See `SETUP_README.md` for detailed instructions
 
-**Swagger UI**: `http://localhost:8000/swagger/` *(when DRF-YASG is installed)*
-**ReDoc**: `http://localhost:8000/redoc/` *(alternative documentation format)*
+## 🤝 **Contributing**
 
-> **🎨 Experience**: Test endpoints directly from the browser with authentication and real-time responses!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `python integration_test.py`
+5. Submit a pull request
 
-## 🤝 **Community Collaboration: Contributing to Excellence**
+### 📋 **Development Standards**
+- Follow PEP 8 style guidelines
+- Add tests for new functionality
+- Update documentation as needed
+- Ensure all tests pass before submitting
 
-We welcome contributions from developers who share our vision of revolutionizing BitTorrent technology!
+## 📄 **License**
 
-### 📋 **Contribution Workflow**
-1. **🍴 Fork** the repository to your GitHub account
-2. **🌿 Create** a feature branch from `main` for your enhancement
-3. **💻 Develop** with excellence, following our coding standards
-4. **✅ Test** thoroughly and ensure all checks pass
-5. **📤 Submit** a pull request with detailed description
-
-### 🎯 **Code Quality Standards**
-- **🏗️ PEP 8 Compliance**: Clean, readable Python code structure
-- **📝 Documentation**: Comprehensive docstrings and inline comments
-- **🧪 Test Coverage**: Unit tests for all new functionality
-- **📖 API Documentation**: OpenAPI/Swagger documentation for endpoints
-- **🔒 Security**: Input validation and secure coding practices
-
-## 📄 **License & Legal Framework**
-
-This project is proudly released under the **MIT License** - promoting open collaboration and innovation in the BitTorrent ecosystem.
-
-## 📞 **Support & Community Engagement**
-
-### 🆘 **Getting Help**
-- **📋 GitHub Issues**: Report bugs, request features, or seek assistance
-- **💬 Discussions**: Join community conversations and share ideas
-- **📧 Email**: Contact maintainers for sensitive matters
-
-### 🌟 **Community Guidelines**
-- Be respectful and constructive in all interactions
-- Provide detailed information when reporting issues
-- Share your innovations and improvements with the community
+This project is licensed under the **MIT License** - see the LICENSE file for details.
 
 ---
 
-**🎉 Thank you for being part of the BitTorrent Private Tracker Backend revolution!**
-
-*Built with ❤️ for the peer-to-peer community*
+**Built with Django REST Framework for the modern BitTorrent ecosystem** 🚀

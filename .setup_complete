@@ -1,0 +1,15 @@
+# BitTorrent Backend Setup Complete
+# This file indicates that the automated setup has been run
+# Created: $(date)
+# Platform: $(uname -s)
+# Python: $(python3 --version 2>&1)
+#
+# Default Credentials:
+# Username: admin
+# Password: admin123
+# Email: admin@example.com
+#
+# Access URLs:
+# Server: http://127.0.0.1:8000
+# API Docs: http://127.0.0.1:8000/api/docs/
+# Admin: http://127.0.0.1:8000/admin/

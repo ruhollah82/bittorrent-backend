@@ -73,6 +73,7 @@ class TorrentDetailView(generics.RetrieveAPIView):
     serializer_class = TorrentDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = Torrent.objects.filter(is_active=True)
+    lookup_field = 'info_hash'
 
 
 class TorrentStatsView(generics.RetrieveAPIView):
