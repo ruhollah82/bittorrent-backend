@@ -1,0 +1,7 @@
+# If you have the actual Ubuntu ISO file for seeding:
+transmission-cli --download-dir "/path/to/ubuntu/iso/directory" \
+  "/home/ruhollah/Desktop/ubuntu-24.04-desktop-amd64.iso.torrent"
+
+# For downloading/leeching (if you don't have the file):
+transmission-cli --download-dir "/tmp/ubuntu-download" \
+  "/home/ruhollah/Desktop/ubuntu-24.04-desktop-amd64.iso.torrent"

@@ -32,7 +32,7 @@ def get_client_ip(request):
     return ip
 
 
-def validate_announce_params(params):
+def validate_announce_params(params, request=None):
     """بررسی پارامترهای announce"""
     required_params = ['info_hash', 'peer_id', 'port', 'uploaded', 'downloaded', 'left', 'compact', 'event']
 
@@ -156,9 +156,30 @@ def announce(request):
     try:
         # دریافت پارامترها
         params = request.GET.copy()
+        
+        # Fix info_hash for URL-encoded binary data from transmission-cli
+        # Django auto-decodes URL params, corrupting binary data
+        if 'info_hash' in params:
+            info_hash = params.get('info_hash', '')
+            # If it's not a valid 40-char hex string, try to get from raw query
+            if not (isinstance(info_hash, str) and len(info_hash) == 40 and 
+                    all(c in '0123456789abcdefABCDEF' for c in info_hash.lower())):
+                import urllib.parse
+                raw_query = request.META.get('QUERY_STRING', '')
+                for param_pair in raw_query.split('&'):
+                    if param_pair.startswith('info_hash='):
+                        encoded_value = param_pair.split('=', 1)[1]
+                        try:
+                            # Decode URL-encoded binary data
+                            decoded_bytes = urllib.parse.unquote_to_bytes(encoded_value)
+                            if len(decoded_bytes) == 20:
+                                params['info_hash'] = decoded_bytes.hex()
+                                break
+                        except:
+                            pass
 
         # بررسی پارامترهای پایه
-        is_valid, error_msg = validate_announce_params(params)
+        is_valid, error_msg = validate_announce_params(params, request)
         if not is_valid:
             return create_bencoded_response({'failure reason': error_msg})
 
