@@ -242,6 +242,26 @@ celery -A core beat --loglevel=info
 
 ## 🧪 **Testing**
 
+### 🐳 **Docker Testing (Recommended)**
+
+For Docker deployments, use the comprehensive test suite:
+
+```bash
+# 1. Setup test data (creates user, torrent, auth token)
+docker-compose exec web python setup_test_data.py
+
+# 2. Test all API endpoints
+docker-compose exec web python test_api_comprehensive.py
+
+# 3. Test tracker with seeder/leecher simulator
+docker-compose exec web python test_tracker_simulator.py <info_hash> <auth_token>
+
+# 4. Run complete Docker setup test
+./test_docker_setup.sh
+```
+
+📖 **For detailed testing instructions, see [TESTING.md](./TESTING.md)**
+
 ### 📊 **Comprehensive Integration Tests**
 
 Run the complete test suite covering all major functionality:
@@ -338,19 +358,40 @@ curl -X POST http://127.0.0.1:8000/api/auth/login/ \
 - **Monitoring**: Health checks and logging
 - **Backups**: Automated database backups
 
-### 🐳 **Docker Deployment**
+### 🐳 **Docker Deployment (Recommended)**
+
+The easiest way to deploy the entire stack is using Docker Compose:
 
 ```bash
-# Build container
-docker build -t bittorrent-backend .
+# Clone repository
+git clone <repository-url>
+cd bittorrent-backend
 
-# Run with environment variables
-docker run -p 8000:8000 \
-  -e DEBUG=False \
-  -e SECRET_KEY=your-production-secret \
-  -e DB_ENGINE=django.db.backends.postgresql \
-  bittorrent-backend
+# Create environment file
+cp env.example .env
+
+# Start all services (Django, PostgreSQL, Redis, Celery)
+docker-compose up -d
+
+# Initialize database
+docker-compose exec web python manage.py migrate
+docker-compose exec web python manage.py createsuperuser
+docker-compose exec web python manage.py setup_admin
 ```
+
+**Services included:**
+- **Django API Server** (port 8000)
+- **PostgreSQL Database** (port 5432)
+- **Redis Cache & Message Broker** (port 6379)
+- **Celery Worker** (background tasks)
+- **Celery Beat** (scheduled tasks)
+
+**Access the application:**
+- API Server: http://localhost:8000
+- Admin Panel: http://localhost:8000/admin/
+- API Docs: http://localhost:8000/api/docs/
+
+📖 **For detailed Docker instructions, see [DOCKER_README.md](./DOCKER_README.md)**
 
 ### ⚙️ **Environment Variables for Production**
 
@@ -369,6 +410,8 @@ DB_ENGINE=django.db.backends.postgresql
 - **Swagger UI**: `http://127.0.0.1:8000/api/docs/`
 - **OpenAPI Schema**: `http://127.0.0.1:8000/api/schema/`
 - **Setup Guide**: See `SETUP_README.md` for detailed instructions
+- **Docker Guide**: See `DOCKER_README.md` for Docker deployment instructions
+- **Testing Guide**: See `TESTING.md` for comprehensive testing instructions
 
 ## 🤝 **Contributing**
 

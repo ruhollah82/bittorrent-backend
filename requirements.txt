@@ -8,6 +8,9 @@ django-celery-beat==2.8.1
 django-celery-results==2.6.0
 python-decouple==3.8
 django-cors-headers==4.9.0
+django-redis==5.4.0
 requests==2.32.3
 bencode.py==4.0.0
-hashlib
+drf-spectacular==0.27.2
+drf-spectacular-sidecar==2024.12.1
+Pillow==11.0.0
