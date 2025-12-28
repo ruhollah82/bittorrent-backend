@@ -38,6 +38,67 @@ python manage.py migrate --noinput
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
+echo ""
+echo "=========================================="
+echo "Checking for invite code..."
+echo "=========================================="
+# Create invite code if none exists
+python << END
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+django.setup()
+
+from accounts.models import InviteCode
+from django.utils import timezone
+from django.db import models
+from datetime import timedelta
+
+# Check if there are any unused invite codes
+unused_codes = InviteCode.objects.filter(
+    is_active=True,
+    used_by__isnull=True
+).filter(
+    models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())
+)
+
+if unused_codes.exists():
+    invite_code = unused_codes.first()
+    print("")
+    print("=" * 60)
+    print("🎫 INVITE CODE FOR FIRST USER REGISTRATION")
+    print("=" * 60)
+    print("")
+    print(f"   Code: {invite_code.code}")
+    print(f"   Expires: {invite_code.expires_at.strftime('%Y-%m-%d %H:%M:%S') if invite_code.expires_at else 'Never'}")
+    print("")
+    print("   Use this code to register the first user at:")
+    print("   http://localhost:8000/api/auth/register/")
+    print("")
+    print("=" * 60)
+    print("")
+else:
+    # Create a new invite code
+    invite_code = InviteCode.objects.create(
+        created_by=None,
+        expires_at=timezone.now() + timedelta(days=30),
+        is_active=True
+    )
+    print("")
+    print("=" * 60)
+    print("🎫 INVITE CODE FOR FIRST USER REGISTRATION")
+    print("=" * 60)
+    print("")
+    print(f"   Code: {invite_code.code}")
+    print(f"   Expires: {invite_code.expires_at.strftime('%Y-%m-%d %H:%M:%S')}")
+    print("")
+    print("   Use this code to register the first user at:")
+    print("   http://localhost:8000/api/auth/register/")
+    print("")
+    print("=" * 60)
+    print("")
+END
+
 echo "Starting server..."
 exec "$@"
 
