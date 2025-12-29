@@ -138,6 +138,7 @@ def check_rate_limit(identifier, action, max_requests, window_seconds):
 @csrf_exempt
 @require_GET
 def announce(request):
+    print("DEBUG: OLD ANNOUNCE VIEW CALLED!!!", flush=True)
     """
     BitTorrent Tracker Announce Endpoint
 

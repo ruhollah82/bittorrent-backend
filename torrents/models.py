@@ -148,7 +148,8 @@ class Peer(models.Model):
     user_agent = models.CharField(max_length=200, blank=True)
 
     def __str__(self):
-        return f"Peer {self.user.username} on {self.torrent.name}"
+        username = self.user.username if self.user else f"anonymous ({self.peer_id[:8]}...)"
+        return f"Peer {username} on {self.torrent.name}"
 
     @property
     def progress(self):
