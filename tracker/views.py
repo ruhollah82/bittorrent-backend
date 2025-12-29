@@ -348,8 +348,8 @@ def process_announce(user, torrent, params, client_ip, user_agent):
         if len(recent_ips) > 3:  # بیش از ۳ IP مختلف در ۱ ساعت
             suspicious_reasons.append('ip_spoofing')
 
-        # ایجاد فعالیت مشکوک اگر دلایل وجود داشته باشد
-        if suspicious_reasons:
+        # ایجاد فعالیت مشکوک اگر دلایل وجود داشته باشد (فقط برای کاربران احراز هویت شده)
+        if suspicious_reasons and user:
             severity = 'critical' if len(suspicious_reasons) > 2 else 'high' if len(suspicious_reasons) > 1 else 'medium'
 
             SuspiciousActivity.objects.create(
@@ -429,7 +429,7 @@ def process_announce(user, torrent, params, client_ip, user_agent):
     )
 
     # ایجاد لیست peerها
-    peers = get_peer_list(torrent, user, numwant, params.get('compact') == '1')
+    peers = get_peer_list(torrent, peer_id, numwant, params.get('compact') == '1')
 
     # ایجاد پاسخ
     response = {
@@ -463,21 +463,28 @@ def update_torrent_stats(torrent):
     stats.save()
 
 
-def get_peer_list(torrent, exclude_user, numwant, compact=False):
+def get_peer_list(torrent, exclude_peer_id, numwant, compact=False):
     """ایجاد لیست peerها"""
 
     # دریافت peerهای فعال (آخرین announce در ۱ ساعت گذشته)
     active_peers = torrent.peers.filter(
         last_announced__gte=timezone.now() - timezone.timedelta(hours=1)
-    ).exclude(user=exclude_user)[:numwant]
+    ).exclude(peer_id=exclude_peer_id)[:numwant]
 
     if compact:
         # فرمت compact
         peer_list = b''
         for peer in active_peers:
-            ip_parts = peer.ip_address.split('.')
-            port_bytes = peer.port.to_bytes(2, 'big')
-            peer_list += bytes([int(ip_parts[0]), int(ip_parts[1]), int(ip_parts[2]), int(ip_parts[3])]) + port_bytes
+            # Use actual peer IP addresses for network connectivity
+            # Convert IP string to binary format for compact response
+            try:
+                ip_parts = peer.ip_address.split('.')
+                ip_bytes = bytes([int(part) for part in ip_parts])
+                port_bytes = peer.port.to_bytes(2, 'big')
+                peer_list += ip_bytes + port_bytes
+            except (ValueError, AttributeError):
+                # Skip invalid IPs
+                continue
         return peer_list
     else:
         # فرمت dictionary
